@@ -3,6 +3,9 @@ import tensorflow as tf
 import numpy as np
 import cv2
 import os
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -11,7 +14,7 @@ app = Flask(__name__)
 # ===============================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
-MODEL_PATH = os.path.join(BASE_DIR, "model", "oilspill_unet.h5") 
+MODEL_PATH = os.path.join(BASE_DIR, "model", "oilspill_unet.h5")  # 🔴 CHANGE NAME IF NEEDED
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -45,6 +48,47 @@ def create_overlay(image_path, mask):
     return overlay
 
 # ===============================
+# GENERATE PDF REPORT
+# ===============================
+def generate_pdf_report(original_img, mask_img, overlay_img, result, confidence):
+    report_path = os.path.join(UPLOAD_FOLDER, "report.pdf")
+
+    c = canvas.Canvas(report_path, pagesize=A4)
+    width, height = A4
+
+    # Title
+    c.setFont("Helvetica-Bold", 20)
+    c.drawCentredString(width / 2, height - 50, "Marine Oil Spill Detection Report")
+
+    # Date
+    c.setFont("Helvetica", 12)
+    c.drawString(50, height - 90, "Date & Time: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+    # Result
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(50, height - 130, f"Result: {result}")
+    c.drawString(50, height - 160, f"Affected Area: {confidence} %")
+
+    # Images page 1
+    c.drawString(50, height - 200, "Original Image:")
+    c.drawImage(original_img, 50, height - 450, width=200, height=200)
+
+    c.drawString(300, height - 200, "Predicted Mask:")
+    c.drawImage(mask_img, 300, height - 450, width=200, height=200)
+
+    c.showPage()
+
+    # Page 2
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(50, height - 50, "Overlay Result:")
+
+    c.drawImage(overlay_img, 100, height - 500, width=400, height=400)
+
+    c.save()
+
+    return report_path
+
+# ===============================
 # ROUTE
 # ===============================
 @app.route("/", methods=["GET", "POST"])
@@ -54,13 +98,13 @@ def index():
     image_path = None
     mask_path = None
     overlay_path = None
+    report_path = None
 
     if request.method == "POST":
         if "image" not in request.files:
             return render_template("index.html")
 
         file = request.files["image"]
-
         if file.filename == "":
             return render_template("index.html")
 
@@ -77,10 +121,8 @@ def index():
         pred = model.predict(img)[0]
 
         mask = (pred > 0.5).astype(np.uint8) * 255
-
         if len(mask.shape) == 3:
             mask = mask[:, :, 0]
-
         mask = mask.astype(np.uint8)
 
         # ===============================
@@ -112,11 +154,23 @@ def index():
             result = "No Oil Spill Detected"
 
         # ===============================
-        # SEND TO HTML (ONLY RELATIVE PATH)
+        # GENERATE PDF
+        # ===============================
+        generate_pdf_report(
+            save_path,
+            mask_save_path,
+            overlay_save_path,
+            result,
+            confidence
+        )
+
+        # ===============================
+        # PATHS FOR HTML
         # ===============================
         image_path = "uploads/" + file.filename
         mask_path = "uploads/" + mask_file
         overlay_path = "uploads/" + overlay_file
+        report_path = "uploads/report.pdf"
 
     return render_template(
         "index.html",
@@ -124,7 +178,8 @@ def index():
         confidence=confidence,
         image_path=image_path,
         mask_path=mask_path,
-        overlay_path=overlay_path
+        overlay_path=overlay_path,
+        report_path=report_path
     )
 
 # ===============================

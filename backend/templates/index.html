@@ -20,6 +20,8 @@
     </div>
 
     {% if result %}
+
+
     <div class="card result-box">
         <div class="status">Result: {{ result }}</div>
         <div class="confidence">Affected Area: {{ confidence }} %</div>
@@ -51,9 +53,15 @@
                 <a href="{{ url_for('static', filename=overlay_path) }}" download>
                     <button>Download</button>
                 </a>
+    </div>
             </div>
 
         </div>
+    </div>
+     <div class="report-section">
+                <a href="{{ report_path }}" download>
+                    <button class="report-btn">📄 Download PDF Report</button>
+        </a>
     </div>
     {% endif %}
 

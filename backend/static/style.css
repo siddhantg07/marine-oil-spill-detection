@@ -93,3 +93,23 @@ footer {
     margin-top: 40px;
     font-size: 14px;
 }
+
+.report-section {
+    margin-top: 20px;
+    margin-bottom:20px;
+    text-align: center;
+}
+
+.report-btn {
+    background: #1e90ff;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-size: 16px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.report-btn:hover {
+    background: #0b5ed7;
+}

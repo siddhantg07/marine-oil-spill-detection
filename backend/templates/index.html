@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Marine Oil Spill Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="container">
+
+    <h1>🌊 Marine Oil Spill Detection Using AI</h1>
+    <p class="subtitle">AI-powered satellite image analysis</p>
+
+    <div class="card upload-box">
+        <form method="POST" enctype="multipart/form-data">
+            <input type="file" name="image" required>
+            <br><br>
+            <button type="submit">🚀 Detect Oil Spill</button>
+        </form>
+    </div>
+
+    {% if result %}
+    <div class="card result-box">
+        <div class="status">Result: {{ result }}</div>
+        <div class="confidence">Affected Area: {{ confidence }} %</div>
+
+        <div class="image-grid">
+
+            <div class="image-card">
+                <h3>Original Image</h3>
+                <img src="{{ url_for('static', filename=image_path) }}">
+                <br><br>
+                <a href="{{ url_for('static', filename=image_path) }}" download>
+                    <button>Download</button>
+                </a>
+            </div>
+
+            <div class="image-card">
+                <h3>Predicted Mask</h3>
+                <img src="{{ url_for('static', filename=mask_path) }}">
+                <br><br>
+                <a href="{{ url_for('static', filename=mask_path) }}" download>
+                    <button>Download</button>
+                </a>
+            </div>
+
+            <div class="image-card">
+                <h3>Overlay Result</h3>
+                <img src="{{ url_for('static', filename=overlay_path) }}">
+                <br><br>
+                <a href="{{ url_for('static', filename=overlay_path) }}" download>
+                    <button>Download</button>
+                </a>
+            </div>
+
+        </div>
+    </div>
+    {% endif %}
+
+    <footer>
+        Marine Oil Spill Detection Using Deep Learning
+    </footer>
+
+</div>
+
+</body>
+</html>

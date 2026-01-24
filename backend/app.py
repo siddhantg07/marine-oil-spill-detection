@@ -1,20 +1,23 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 import tensorflow as tf
 import numpy as np
 import cv2
 import os
+import sqlite3
+from werkzeug.security import generate_password_hash, check_password_hash
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from datetime import datetime
 
 app = Flask(__name__)
+app.secret_key = "change_this_secret_key"
 
 # ===============================
 # PATHS
 # ===============================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
-MODEL_PATH = os.path.join(BASE_DIR, "model", "oilspill_unet.h5")  # 🔴 CHANGE NAME IF NEEDED
+MODEL_PATH = os.path.join(BASE_DIR, "model", "oilspill_unet.h5")
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -56,20 +59,16 @@ def generate_pdf_report(original_img, mask_img, overlay_img, result, confidence)
     c = canvas.Canvas(report_path, pagesize=A4)
     width, height = A4
 
-    # Title
     c.setFont("Helvetica-Bold", 20)
     c.drawCentredString(width / 2, height - 50, "Marine Oil Spill Detection Report")
 
-    # Date
     c.setFont("Helvetica", 12)
     c.drawString(50, height - 90, "Date & Time: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
-    # Result
     c.setFont("Helvetica-Bold", 14)
     c.drawString(50, height - 130, f"Result: {result}")
     c.drawString(50, height - 160, f"Affected Area: {confidence} %")
 
-    # Images page 1
     c.drawString(50, height - 200, "Original Image:")
     c.drawImage(original_img, 50, height - 450, width=200, height=200)
 
@@ -78,21 +77,73 @@ def generate_pdf_report(original_img, mask_img, overlay_img, result, confidence)
 
     c.showPage()
 
-    # Page 2
     c.setFont("Helvetica-Bold", 16)
     c.drawString(50, height - 50, "Overlay Result:")
-
     c.drawImage(overlay_img, 100, height - 500, width=400, height=400)
 
     c.save()
-
     return report_path
 
 # ===============================
-# ROUTE
+# AUTH ROUTES
+# ===============================
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+
+        hashed = generate_password_hash(password)
+
+        try:
+            conn = sqlite3.connect("users.db")
+            c = conn.cursor()
+            c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed))
+            conn.commit()
+            conn.close()
+            flash("Registration successful! Please login.")
+            return redirect(url_for("login"))
+        except:
+            flash("Username already exists!")
+            return redirect(url_for("register"))
+
+    return render_template("register.html")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+
+        conn = sqlite3.connect("users.db")
+        c = conn.cursor()
+        c.execute("SELECT password FROM users WHERE username = ?", (username,))
+        user = c.fetchone()
+        conn.close()
+
+        if user and check_password_hash(user[0], password):
+            session["user"] = username
+            return redirect(url_for("index"))
+        else:
+            flash("Invalid username or password!")
+
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.pop("user", None)
+    return redirect(url_for("login"))
+
+# ===============================
+# MAIN ROUTE (PROTECTED)
 # ===============================
 @app.route("/", methods=["GET", "POST"])
 def index():
+    if "user" not in session:
+        return redirect(url_for("login"))
+
     result = None
     confidence = None
     image_path = None
@@ -108,15 +159,9 @@ def index():
         if file.filename == "":
             return render_template("index.html")
 
-        # ===============================
-        # SAVE IMAGE
-        # ===============================
         save_path = os.path.join(UPLOAD_FOLDER, file.filename)
         file.save(save_path)
 
-        # ===============================
-        # PREDICT
-        # ===============================
         img = preprocess_image(save_path)
         pred = model.predict(img)[0]
 
@@ -125,24 +170,15 @@ def index():
             mask = mask[:, :, 0]
         mask = mask.astype(np.uint8)
 
-        # ===============================
-        # SAVE MASK
-        # ===============================
         mask_file = "mask_" + file.filename
         mask_save_path = os.path.join(UPLOAD_FOLDER, mask_file)
         cv2.imwrite(mask_save_path, mask)
 
-        # ===============================
-        # SAVE OVERLAY
-        # ===============================
         overlay_img = create_overlay(save_path, mask)
         overlay_file = "overlay_" + file.filename
         overlay_save_path = os.path.join(UPLOAD_FOLDER, overlay_file)
         cv2.imwrite(overlay_save_path, overlay_img)
 
-        # ===============================
-        # CALCULATE AREA
-        # ===============================
         oil_pixels = np.sum(mask > 0)
         total_pixels = mask.size
         ratio = oil_pixels / total_pixels
@@ -153,20 +189,8 @@ def index():
         else:
             result = "No Oil Spill Detected"
 
-        # ===============================
-        # GENERATE PDF
-        # ===============================
-        generate_pdf_report(
-            save_path,
-            mask_save_path,
-            overlay_save_path,
-            result,
-            confidence
-        )
+        generate_pdf_report(save_path, mask_save_path, overlay_save_path, result, confidence)
 
-        # ===============================
-        # PATHS FOR HTML
-        # ===============================
         image_path = "uploads/" + file.filename
         mask_path = "uploads/" + mask_file
         overlay_path = "uploads/" + overlay_file

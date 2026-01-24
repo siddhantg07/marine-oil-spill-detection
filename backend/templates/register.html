@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Register</title>
+ <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <h2>Create Account ✨</h2>
+        <div class="auth-subtitle">Register to use the system</div>
+
+        {% for msg in get_flashed_messages() %}
+            <div class="flash-msg">{{ msg }}</div>
+        {% endfor %}
+
+        <form method="POST">
+            <input type="text" name="username" placeholder="Username" required>
+            <input type="password" name="password" placeholder="Password" required>
+            <button type="submit">Register</button>
+        </form>
+
+        <div class="auth-link">
+            Already have an account? <a href="/login">Login</a>
+        </div>
+    </div>
+</div>
+</body>
+
+</html>

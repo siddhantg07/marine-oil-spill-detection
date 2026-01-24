@@ -130,7 +130,7 @@ footer {
     max-width: 420px;
     background: rgba(255,255,255,0.08);
     border-radius: 16px;
-    padding: 35px 30px;
+    padding: 40px 40px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.35);
     text-align: center;
     backdrop-filter: blur(8px);
@@ -150,8 +150,8 @@ footer {
 .auth-card input {
     width: 100%;
     padding: 12px 14px;
-    margin-bottom: 15px;
-    border-radius: 8px;
+    margin-bottom: 18px;
+    border-radius: 12px;
     border: none;
     outline: none;
     font-size: 15px;
@@ -191,4 +191,28 @@ footer {
     border-radius: 8px;
     margin-bottom: 15px;
     font-size: 14px;
+}
+/* ===== Password field with toggle ===== */
+
+.password-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.password-wrapper input {
+    padding-right: 15px; /* space for eye icon */
+}
+
+.password-toggle {
+    position: absolute;
+    right: 0px;
+    top: 30%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    opacity: 0.8;
+    font-size: 20px;
+}
+
+.password-toggle:hover {
+    opacity: 1;
 }

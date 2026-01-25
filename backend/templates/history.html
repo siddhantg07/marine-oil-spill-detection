@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Scan History</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="container">
+    <h1>📜 My Scan History</h1>
+
+    <div style="text-align:right; margin-bottom:15px;">
+        <a href="/" class="btn">⬅ Back to Dashboard</a>
+    </div>
+
+    {% if history %}
+        <div class="history-grid">
+            {% for h in history %}
+                <div class="history-card">
+                    <p class="history-date">🕒 {{ h[4] }}</p>
+
+                    <div class="history-images">
+                        <img src="{{ url_for('static', filename=h[0]) }}">
+                        <img src="{{ url_for('static', filename=h[2]) }}">
+                    </div>
+
+                    <div class="history-actions">
+                        <a href="{{ url_for('static', filename=h[3]) }}" download class="btn">
+                            📄 Download Report
+                        </a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="no-history">No scans yet.</p>
+    {% endif %}
+</div>
+
+</body>
+</html>

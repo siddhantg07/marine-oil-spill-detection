@@ -27,6 +27,40 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 model = tf.keras.models.load_model(MODEL_PATH)
 
 # ===============================
+# INIT DATABASE
+# ===============================
+def init_db():
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+
+    # users table (already exists in your project)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT
+        )
+    """)
+
+    # scan history table
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS scan_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT,
+            original_image TEXT,
+            mask_image TEXT,
+            overlay_image TEXT,
+            report_file TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.commit()
+    conn.close()
+
+init_db()
+
+# ===============================
 # IMAGE PREPROCESS
 # ===============================
 def preprocess_image(image_path):
@@ -53,9 +87,7 @@ def create_overlay(image_path, mask):
 # ===============================
 # GENERATE PDF REPORT
 # ===============================
-def generate_pdf_report(original_img, mask_img, overlay_img, result, confidence):
-    report_path = os.path.join(UPLOAD_FOLDER, "report.pdf")
-
+def generate_pdf_report(original_img, mask_img, overlay_img, result, confidence, report_path):
     c = canvas.Canvas(report_path, pagesize=A4)
     width, height = A4
 
@@ -82,7 +114,19 @@ def generate_pdf_report(original_img, mask_img, overlay_img, result, confidence)
     c.drawImage(overlay_img, 100, height - 500, width=400, height=400)
 
     c.save()
-    return report_path
+
+# ===============================
+# SAVE HISTORY
+# ===============================
+def save_scan_history(username, orig, mask, overlay, report):
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO scan_history (username, original_image, mask_image, overlay_image, report_file)
+        VALUES (?, ?, ?, ?, ?)
+    """, (username, orig, mask, overlay, report))
+    conn.commit()
+    conn.close()
 
 # ===============================
 # AUTH ROUTES
@@ -137,7 +181,28 @@ def logout():
     return redirect(url_for("login"))
 
 # ===============================
-# MAIN ROUTE (PROTECTED)
+# HISTORY PAGE
+# ===============================
+@app.route("/history")
+def history():
+    if "user" not in session:
+        return redirect(url_for("login"))
+
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("""
+        SELECT original_image, mask_image, overlay_image, report_file, timestamp
+        FROM scan_history
+        WHERE username = ?
+        ORDER BY timestamp DESC
+    """, (session["user"],))
+    rows = c.fetchall()
+    conn.close()
+
+    return render_template("history.html", history=rows)
+
+# ===============================
+# MAIN ROUTE
 # ===============================
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -152,14 +217,12 @@ def index():
     report_path = None
 
     if request.method == "POST":
-        if "image" not in request.files:
-            return render_template("index.html")
-
         file = request.files["image"]
         if file.filename == "":
             return render_template("index.html")
 
-        save_path = os.path.join(UPLOAD_FOLDER, file.filename)
+        filename = datetime.now().strftime("%Y%m%d_%H%M%S_") + file.filename
+        save_path = os.path.join(UPLOAD_FOLDER, filename)
         file.save(save_path)
 
         img = preprocess_image(save_path)
@@ -170,12 +233,12 @@ def index():
             mask = mask[:, :, 0]
         mask = mask.astype(np.uint8)
 
-        mask_file = "mask_" + file.filename
+        mask_file = "mask_" + filename
         mask_save_path = os.path.join(UPLOAD_FOLDER, mask_file)
         cv2.imwrite(mask_save_path, mask)
 
         overlay_img = create_overlay(save_path, mask)
-        overlay_file = "overlay_" + file.filename
+        overlay_file = "overlay_" + filename
         overlay_save_path = os.path.join(UPLOAD_FOLDER, overlay_file)
         cv2.imwrite(overlay_save_path, overlay_img)
 
@@ -189,12 +252,24 @@ def index():
         else:
             result = "No Oil Spill Detected"
 
-        generate_pdf_report(save_path, mask_save_path, overlay_save_path, result, confidence)
+        report_file = "report_" + filename + ".pdf"
+        report_save_path = os.path.join(UPLOAD_FOLDER, report_file)
 
-        image_path = "uploads/" + file.filename
+        generate_pdf_report(save_path, mask_save_path, overlay_save_path, result, confidence, report_save_path)
+
+        # Save history
+        save_scan_history(
+            session["user"],
+            "uploads/" + filename,
+            "uploads/" + mask_file,
+            "uploads/" + overlay_file,
+            "uploads/" + report_file
+        )
+
+        image_path = "uploads/" + filename
         mask_path = "uploads/" + mask_file
         overlay_path = "uploads/" + overlay_file
-        report_path = "uploads/report.pdf"
+        report_path = "uploads/" + report_file
 
     return render_template(
         "index.html",

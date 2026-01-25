@@ -354,3 +354,9 @@ footer {
 .menu-overlay.active {
     display: block;
 }
+/* Profile Page */
+.profile-info p {
+    font-size: 18px;
+    margin: 14px 0;
+    color: #e0f7ff;
+}

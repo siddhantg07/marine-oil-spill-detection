@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Profile</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<!-- Hamburger Button -->
+<div class="hamburger" onclick="toggleMenu()">☰</div>
+
+<!-- Sidebar Menu (same structure as index.html) -->
+<div id="sideMenu" class="side-menu">
+    <div class="side-menu-header">
+        <p>👤 {{ session['user'] }}</p>
+    </div>
+
+    <a href="/">🏠 Dashboard</a>
+    <a href="/">📤 New Scan</a>
+    <a href="/history">📜 My History</a>
+    <a href="/profile">👤 My Profile</a>
+    <a href="/about">ℹ️ About</a>
+
+    <div class="side-menu-footer">
+        <a href="/logout">🚪 Logout</a>
+    </div>
+</div>
+
+<!-- Overlay -->
+<div id="menuOverlay" class="menu-overlay" onclick="toggleMenu()"></div>
+
+<div class="container">
+    <h1>👤 My Profile</h1>
+
+    <div class="card profile-info">
+        <p><b>Username:</b> {{ username }}</p>
+        <p><b>Total Scans:</b> {{ total_scans }}</p>
+        <p><b>Last Scan:</b> {{ last_scan }}</p>
+    </div>
+
+    <footer>
+        Marine Oil Spill Detection Using Deep Learning
+    </footer>
+</div>
+
+<!-- JS (same sidebar JS, no new file needed) -->
+<script>
+function toggleMenu() {
+    const menu = document.getElementById("sideMenu");
+    const overlay = document.getElementById("menuOverlay");
+
+    menu.classList.toggle("active");
+    overlay.classList.toggle("active");
+}
+</script>
+
+</body>
+</html>

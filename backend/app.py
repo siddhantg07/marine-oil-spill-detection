@@ -201,6 +201,39 @@ def history():
 
     return render_template("history.html", history=rows)
 
+@app.route("/profile")
+def profile():
+    if "user" not in session:
+        return redirect(url_for("login"))
+
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+
+    # Total scans
+    c.execute("SELECT COUNT(*) FROM scan_history WHERE username = ?", (session["user"],))
+    total_scans = c.fetchone()[0]
+
+    # Last scan date
+    c.execute("""
+        SELECT timestamp FROM scan_history
+        WHERE username = ?
+        ORDER BY timestamp DESC
+        LIMIT 1
+    """, (session["user"],))
+    last_scan_row = c.fetchone()
+
+    last_scan = last_scan_row[0] if last_scan_row else "No scans yet"
+
+    conn.close()
+
+    return render_template(
+        "profile.html",
+        username=session["user"],
+        total_scans=total_scans,
+        last_scan=last_scan
+    )
+
+
 # ===============================
 # MAIN ROUTE
 # ===============================

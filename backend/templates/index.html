@@ -5,9 +5,28 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-<a href="/logout">Logout</a>
-<a href="/history"><button>📜 My Scan History</button></a>
 
+<!-- Hamburger Button -->
+<div class="hamburger" onclick="toggleMenu()">☰</div>
+
+<!-- Sidebar Menu -->
+<div id="sideMenu" class="side-menu">
+    <div class="side-menu-header">
+        <p>👤 {{ session['user'] }}</p>
+    </div>
+
+    <a href="/">🏠 Dashboard</a>
+    <a href="/">📤 New Scan</a>
+    <a href="/history">📜 My History</a>
+    <a href="/about">ℹ️ About</a>
+
+    <div class="side-menu-footer">
+        <a href="/logout" class="logout-btn">🚪 Logout</a>
+    </div>
+</div>
+
+<!-- Overlay -->
+<div id="menuOverlay" class="menu-overlay" onclick="toggleMenu()"></div>
 
 <div class="container">
 
@@ -23,7 +42,6 @@
     </div>
 
     {% if result %}
-
 
     <div class="card result-box">
         <div class="status">Result: {{ result }}</div>
@@ -56,16 +74,17 @@
                 <a href="{{ url_for('static', filename=overlay_path) }}" download>
                     <button>Download</button>
                 </a>
-    </div>
             </div>
 
         </div>
     </div>
-     <div class="report-section">
-                <a href="{{ report_path }}" download>
-                    <button class="report-btn">📄 Download PDF Report</button>
+
+    <div class="report-section">
+        <a href="{{ report_path }}" download>
+            <button class="report-btn">📄 Download PDF Report</button>
         </a>
     </div>
+
     {% endif %}
 
     <footer>
@@ -73,6 +92,17 @@
     </footer>
 
 </div>
+
+<!-- JS -->
+<script>
+function toggleMenu() {
+    const menu = document.getElementById("sideMenu");
+    const overlay = document.getElementById("menuOverlay");
+
+    menu.classList.toggle("active");
+    overlay.classList.toggle("active");
+}
+</script>
 
 </body>
 </html>

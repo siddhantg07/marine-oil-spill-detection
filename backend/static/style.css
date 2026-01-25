@@ -256,3 +256,101 @@ footer {
     text-align: center;
     color: #aaa;
 }
+/* ===============================
+   HAMBURGER SIDEBAR MENU (FIXED)
+=============================== */
+
+/* Hamburger Button */
+.hamburger {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    font-size: 28px;
+    cursor: pointer;
+    z-index: 2001;
+    color: #fff;
+}
+
+/* Side Menu */
+.side-menu {
+    position: fixed;
+    top: 0;
+    left: -280px;
+    width: 280px;
+    height: 100vh;
+    background: rgba(20, 30, 40, 0.96);
+    backdrop-filter: blur(12px);
+    padding: 20px;
+    transition: 0.3s ease;
+    z-index: 2002;
+
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+.side-menu.active {
+    left: 0;
+}
+
+/* Header */
+.side-menu-header {
+    font-size: 18px;
+    margin-bottom: 20px;
+    color: #7cc4ff;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+}
+
+/* Menu Links */
+.side-menu a {
+    text-decoration: none;
+    color: white;
+    padding: 12px 12px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    transition: 0.2s;
+    display: block;
+}
+
+.side-menu a:hover {
+    background: rgba(255,255,255,0.12);
+}
+
+/* Footer */
+.side-menu-footer {
+    margin-top: auto;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255,255,255,0.15);
+}
+
+/* Logout Button */
+.side-menu-footer a {
+    color: #ff6b6b;
+    display: block;
+    padding: 12px 12px;
+    border-radius: 10px;
+    text-decoration: none;
+    transition: 0.2s;
+}
+
+.side-menu-footer a:hover {
+    background: rgba(255, 107, 107, 0.15);
+}
+
+/* Overlay */
+.menu-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.45);
+    display: none;
+    z-index: 2000;
+}
+
+.menu-overlay.active {
+    display: block;
+}

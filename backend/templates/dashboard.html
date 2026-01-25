@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<!-- Hamburger -->
+<div class="hamburger" onclick="toggleMenu()">☰</div>
+
+<!-- Sidebar -->
+<div id="sideMenu" class="side-menu">
+    <div class="side-menu-header">
+        <p>👤 {{ username }}</p>
+    </div>
+
+    <a href="/dashboard">🏠 Dashboard</a>
+    <a href="/scan">📤 New Scan</a>
+    <a href="/history">📜 My History</a>
+    <a href="/profile">👤 My Profile</a>
+    <a href="/about">ℹ️ About</a>
+
+    <div class="side-menu-footer">
+        <a href="/logout">🚪 Logout</a>
+    </div>
+</div>
+
+<div id="menuOverlay" class="menu-overlay" onclick="toggleMenu()"></div>
+
+<div class="container">
+    <h1>📊 Dashboard</h1>
+    <p class="subtitle">Welcome back, {{ username }} 👋</p>
+
+    <!-- Quick Actions -->
+    <div class="card" style="text-align:center;">
+        <a href="/scan"><button>🚀 New Scan</button></a>
+        <a href="/history"><button>📜 View History</button></a>
+    </div>
+
+    <!-- Stats -->
+    <div class="image-grid">
+
+        <div class="card">
+            <h3>Total Scans</h3>
+            <p style="font-size:32px;">{{ total_scans }}</p>
+        </div>
+
+        <div class="card">
+            <h3>Oil Detected</h3>
+            <p style="font-size:32px; color:#ff6b6b;">{{ oil_scans }}</p>
+        </div>
+
+        <div class="card">
+            <h3>No Oil</h3>
+            <p style="font-size:32px; color:#00ffcc;">{{ no_oil_scans }}</p>
+        </div>
+
+    </div>
+
+    <!-- Last Scan -->
+    <div class="card">
+        <h3>🕒 Last Scan</h3>
+        <p>{{ last_time }}</p>
+
+        {% if last_image %}
+            <img src="{{ url_for('static', filename=last_image) }}" style="max-width:300px; border-radius:12px;">
+        {% else %}
+            <p>No scans yet.</p>
+        {% endif %}
+    </div>
+
+    <footer>
+        Marine Oil Spill Detection Using Deep Learning
+    </footer>
+</div>
+
+<script>
+function toggleMenu() {
+    const menu = document.getElementById("sideMenu");
+    const overlay = document.getElementById("menuOverlay");
+    menu.classList.toggle("active");
+    overlay.classList.toggle("active");
+}
+</script>
+
+</body>
+</html>

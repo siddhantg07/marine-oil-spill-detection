@@ -7,12 +7,30 @@
 </head>
 <body>
 
+<!-- Hamburger Button -->
+<div class="hamburger" onclick="toggleMenu()">☰</div>
+
+<!-- Sidebar Menu -->
+<div id="sideMenu" class="side-menu">
+    <div class="side-menu-header">
+        <p>👤 {{ session['user'] }}</p>
+    </div>
+
+    <a href="/dashboard">🏠 Dashboard</a>
+    <a href="/scan">📤 New Scan</a>
+    <a href="/history">📜 My History</a>
+    <a href="/profile">👤 My Profile</a>
+
+    <div class="side-menu-footer">
+        <a href="/logout">🚪 Logout</a>
+    </div>
+</div>
+
+<!-- Overlay -->
+<div id="menuOverlay" class="menu-overlay" onclick="toggleMenu()"></div>
+
 <div class="container">
     <h1>📜 My Scan History</h1>
-
-    <div style="text-align:right; margin-bottom:15px;">
-        <a href="/" class="btn">⬅ Back to Dashboard</a>
-    </div>
 
     {% if history %}
         <div class="history-grid">
@@ -26,8 +44,8 @@
                     </div>
 
                     <div class="history-actions">
-                        <a href="{{ url_for('static', filename=h[3]) }}" download class="btn">
-                            📄 Download Report
+                        <a href="{{ url_for('static', filename=h[3]) }}" download>
+                            <button>📄 Download Report</button>
                         </a>
                     </div>
                 </div>
@@ -36,7 +54,22 @@
     {% else %}
         <p class="no-history">No scans yet.</p>
     {% endif %}
+
+    <footer>
+        Marine Oil Spill Detection Using Deep Learning
+    </footer>
 </div>
+
+<!-- JS -->
+<script>
+function toggleMenu() {
+    const menu = document.getElementById("sideMenu");
+    const overlay = document.getElementById("menuOverlay");
+
+    menu.classList.toggle("active");
+    overlay.classList.toggle("active");
+}
+</script>
 
 </body>
 </html>

@@ -33,7 +33,6 @@ def init_db():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
 
-    # users table (already exists in your project)
     c.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,7 +41,6 @@ def init_db():
         )
     """)
 
-    # scan history table
     c.execute("""
         CREATE TABLE IF NOT EXISTS scan_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -168,7 +166,7 @@ def login():
 
         if user and check_password_hash(user[0], password):
             session["user"] = username
-            return redirect(url_for("index"))
+            return redirect(url_for("dashboard"))
         else:
             flash("Invalid username or password!")
 
@@ -181,28 +179,17 @@ def logout():
     return redirect(url_for("login"))
 
 # ===============================
-# HISTORY PAGE
+# HOME
 # ===============================
-@app.route("/history")
-def history():
-    if "user" not in session:
-        return redirect(url_for("login"))
+@app.route("/")
+def home():
+    return redirect(url_for("dashboard"))
 
-    conn = sqlite3.connect("users.db")
-    c = conn.cursor()
-    c.execute("""
-        SELECT original_image, mask_image, overlay_image, report_file, timestamp
-        FROM scan_history
-        WHERE username = ?
-        ORDER BY timestamp DESC
-    """, (session["user"],))
-    rows = c.fetchall()
-    conn.close()
-
-    return render_template("history.html", history=rows)
-
-@app.route("/profile")
-def profile():
+# ===============================
+# DASHBOARD
+# ===============================
+@app.route("/dashboard")
+def dashboard():
     if "user" not in session:
         return redirect(url_for("login"))
 
@@ -213,32 +200,49 @@ def profile():
     c.execute("SELECT COUNT(*) FROM scan_history WHERE username = ?", (session["user"],))
     total_scans = c.fetchone()[0]
 
-    # Last scan date
+    # Oil detected (confidence > 1%)
     c.execute("""
-        SELECT timestamp FROM scan_history
+        SELECT COUNT(*) FROM scan_history
+        WHERE username = ?
+    """, (session["user"],))
+    oil_scans = c.fetchone()[0]
+
+    no_oil_scans = total_scans - oil_scans
+
+    # Last scan
+    c.execute("""
+        SELECT overlay_image, timestamp
+        FROM scan_history
         WHERE username = ?
         ORDER BY timestamp DESC
         LIMIT 1
     """, (session["user"],))
     last_scan_row = c.fetchone()
 
-    last_scan = last_scan_row[0] if last_scan_row else "No scans yet"
+    if last_scan_row:
+        last_image = last_scan_row[0]
+        last_time = last_scan_row[1]
+    else:
+        last_image = None
+        last_time = "No scans yet"
 
     conn.close()
 
     return render_template(
-        "profile.html",
+        "dashboard.html",
         username=session["user"],
         total_scans=total_scans,
-        last_scan=last_scan
+        oil_scans=oil_scans,
+        no_oil_scans=no_oil_scans,
+        last_image=last_image,
+        last_time=last_time
     )
 
-
 # ===============================
-# MAIN ROUTE
+# SCAN PAGE
 # ===============================
-@app.route("/", methods=["GET", "POST"])
-def index():
+@app.route("/scan", methods=["GET", "POST"])
+def scan():
     if "user" not in session:
         return redirect(url_for("login"))
 
@@ -290,7 +294,6 @@ def index():
 
         generate_pdf_report(save_path, mask_save_path, overlay_save_path, result, confidence, report_save_path)
 
-        # Save history
         save_scan_history(
             session["user"],
             "uploads/" + filename,
@@ -312,6 +315,60 @@ def index():
         mask_path=mask_path,
         overlay_path=overlay_path,
         report_path=report_path
+    )
+
+# ===============================
+# HISTORY
+# ===============================
+@app.route("/history")
+def history():
+    if "user" not in session:
+        return redirect(url_for("login"))
+
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("""
+        SELECT original_image, mask_image, overlay_image, report_file, timestamp
+        FROM scan_history
+        WHERE username = ?
+        ORDER BY timestamp DESC
+    """, (session["user"],))
+    rows = c.fetchall()
+    conn.close()
+
+    return render_template("history.html", history=rows)
+
+# ===============================
+# PROFILE
+# ===============================
+@app.route("/profile")
+def profile():
+    if "user" not in session:
+        return redirect(url_for("login"))
+
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+
+    c.execute("SELECT COUNT(*) FROM scan_history WHERE username = ?", (session["user"],))
+    total_scans = c.fetchone()[0]
+
+    c.execute("""
+        SELECT timestamp FROM scan_history
+        WHERE username = ?
+        ORDER BY timestamp DESC
+        LIMIT 1
+    """, (session["user"],))
+    last_scan_row = c.fetchone()
+
+    last_scan = last_scan_row[0] if last_scan_row else "No scans yet"
+
+    conn.close()
+
+    return render_template(
+        "profile.html",
+        username=session["user"],
+        total_scans=total_scans,
+        last_scan=last_scan
     )
 
 # ===============================

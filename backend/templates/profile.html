@@ -6,13 +6,11 @@
 </head>
 <body>
 
-<!-- Hamburger Button -->
 <div class="hamburger" onclick="toggleMenu()">☰</div>
 
-<!-- Sidebar Menu (same structure as index.html) -->
 <div id="sideMenu" class="side-menu">
     <div class="side-menu-header">
-        <p>👤 {{ session['user'] }}</p>
+        <p>👤 {{ user[0] }}</p>
     </div>
 
     <a href="/dashboard">🏠 Dashboard</a>
@@ -26,16 +24,50 @@
     </div>
 </div>
 
-<!-- Overlay -->
 <div id="menuOverlay" class="menu-overlay" onclick="toggleMenu()"></div>
 
 <div class="container">
     <h1>👤 My Profile</h1>
 
-    <div class="card profile-info">
-        <p><b>Username:</b> {{ username }}</p>
-        <p><b>Total Scans:</b> {{ total_scans }}</p>
-        <p><b>Last Scan:</b> {{ last_scan }}</p>
+    <!-- Edit Profile -->
+    <div class="card">
+        <h3>📝 Edit Profile</h3>
+        <form method="POST">
+
+            <label>Username (cannot change)</label>
+            <input type="text" value="{{ user[0] }}" disabled>
+
+            <label>Full Name</label>
+            <input type="text" name="full_name" value="{{ user[1] or '' }}">
+
+            <label>Email</label>
+            <input type="email" name="email" value="{{ user[2] or '' }}">
+
+            <label>Role in Organization</label>
+            <input type="text" name="role" value="{{ user[3] or '' }}">
+
+            <br>
+            <button type="submit">💾 Save Profile</button>
+        </form>
+    </div>
+
+    <!-- Stats -->
+    <div class="image-grid">
+        <div class="card">
+            <h3>📊 Total Scans</h3>
+            <p style="font-size:28px;">{{ total_scans }}</p>
+        </div>
+
+        <div class="card">
+            <h3>🕒 Last Scan</h3>
+            <p>{{ last_scan }}</p>
+        </div>
+    </div>
+
+    <!-- Security -->
+    <div class="card" style="text-align:center;">
+        <h3>🔐 Security</h3>
+        <a href="/change-password"><button>🔁 Change Password</button></a>
     </div>
 
     <footer>
@@ -43,12 +75,10 @@
     </footer>
 </div>
 
-<!-- JS (same sidebar JS, no new file needed) -->
 <script>
 function toggleMenu() {
     const menu = document.getElementById("sideMenu");
     const overlay = document.getElementById("menuOverlay");
-
     menu.classList.toggle("active");
     overlay.classList.toggle("active");
 }

@@ -59,6 +59,24 @@ def init_db():
 init_db()
 
 # ===============================
+# UPGRADE USERS TABLE (SAFE)
+# ===============================
+def upgrade_users_table():
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+
+    for col in ["full_name", "email", "role", "profile_image"]:
+        try:
+            c.execute(f"ALTER TABLE users ADD COLUMN {col} TEXT")
+        except:
+            pass
+
+    conn.commit()
+    conn.close()
+
+upgrade_users_table()
+
+# ===============================
 # IMAGE PREPROCESS
 # ===============================
 def preprocess_image(image_path):
@@ -200,13 +218,16 @@ def dashboard():
     c.execute("SELECT COUNT(*) FROM scan_history WHERE username = ?", (session["user"],))
     total_scans = c.fetchone()[0]
 
-    # Oil detected (confidence > 1%)
+    # Oil detected scans (ratio > 1%)
+    # We infer from report existence (all scans have reports, but we can use filename logic later)
+    # For now: count all scans where overlay exists AND filename contains something
     c.execute("""
         SELECT COUNT(*) FROM scan_history
         WHERE username = ?
     """, (session["user"],))
     oil_scans = c.fetchone()[0]
 
+    # For now, no_oil = total - oil (later we can store result in DB)
     no_oil_scans = total_scans - oil_scans
 
     # Last scan
@@ -217,14 +238,12 @@ def dashboard():
         ORDER BY timestamp DESC
         LIMIT 1
     """, (session["user"],))
-    last_scan_row = c.fetchone()
+    row = c.fetchone()
 
-    if last_scan_row:
-        last_image = last_scan_row[0]
-        last_time = last_scan_row[1]
+    if row:
+        last_image, last_time = row
     else:
-        last_image = None
-        last_time = "No scans yet"
+        last_image, last_time = None, "No scans yet"
 
     conn.close()
 
@@ -246,16 +265,11 @@ def scan():
     if "user" not in session:
         return redirect(url_for("login"))
 
-    result = None
-    confidence = None
-    image_path = None
-    mask_path = None
-    overlay_path = None
-    report_path = None
+    result = confidence = image_path = mask_path = overlay_path = report_path = None
 
     if request.method == "POST":
         file = request.files["image"]
-        if file.filename == "":
+        if not file or file.filename == "":
             return render_template("index.html")
 
         filename = datetime.now().strftime("%Y%m%d_%H%M%S_") + file.filename
@@ -268,7 +282,6 @@ def scan():
         mask = (pred > 0.5).astype(np.uint8) * 255
         if len(mask.shape) == 3:
             mask = mask[:, :, 0]
-        mask = mask.astype(np.uint8)
 
         mask_file = "mask_" + filename
         mask_save_path = os.path.join(UPLOAD_FOLDER, mask_file)
@@ -279,15 +292,9 @@ def scan():
         overlay_save_path = os.path.join(UPLOAD_FOLDER, overlay_file)
         cv2.imwrite(overlay_save_path, overlay_img)
 
-        oil_pixels = np.sum(mask > 0)
-        total_pixels = mask.size
-        ratio = oil_pixels / total_pixels
+        ratio = np.sum(mask > 0) / mask.size
         confidence = round(ratio * 100, 2)
-
-        if ratio > 0.01:
-            result = "Oil Spill Detected"
-        else:
-            result = "No Oil Spill Detected"
+        result = "Oil Spill Detected" if ratio > 0.01 else "No Oil Spill Detected"
 
         report_file = "report_" + filename + ".pdf"
         report_save_path = os.path.join(UPLOAD_FOLDER, report_file)
@@ -307,15 +314,9 @@ def scan():
         overlay_path = "uploads/" + overlay_file
         report_path = "uploads/" + report_file
 
-    return render_template(
-        "index.html",
-        result=result,
-        confidence=confidence,
-        image_path=image_path,
-        mask_path=mask_path,
-        overlay_path=overlay_path,
-        report_path=report_path
-    )
+    return render_template("index.html", result=result, confidence=confidence,
+                           image_path=image_path, mask_path=mask_path,
+                           overlay_path=overlay_path, report_path=report_path)
 
 # ===============================
 # HISTORY
@@ -341,7 +342,7 @@ def history():
 # ===============================
 # PROFILE
 # ===============================
-@app.route("/profile")
+@app.route("/profile", methods=["GET", "POST"])
 def profile():
     if "user" not in session:
         return redirect(url_for("login"))
@@ -349,27 +350,30 @@ def profile():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
 
+    if request.method == "POST":
+        c.execute("""
+            UPDATE users SET full_name=?, email=?, role=? WHERE username=?
+        """, (
+            request.form["full_name"],
+            request.form["email"],
+            request.form["role"],
+            session["user"]
+        ))
+        conn.commit()
+
+    c.execute("SELECT username, full_name, email, role, profile_image FROM users WHERE username = ?", (session["user"],))
+    user = c.fetchone()
+
     c.execute("SELECT COUNT(*) FROM scan_history WHERE username = ?", (session["user"],))
     total_scans = c.fetchone()[0]
 
-    c.execute("""
-        SELECT timestamp FROM scan_history
-        WHERE username = ?
-        ORDER BY timestamp DESC
-        LIMIT 1
-    """, (session["user"],))
-    last_scan_row = c.fetchone()
-
-    last_scan = last_scan_row[0] if last_scan_row else "No scans yet"
+    c.execute("SELECT timestamp FROM scan_history WHERE username=? ORDER BY timestamp DESC LIMIT 1", (session["user"],))
+    row = c.fetchone()
+    last_scan = row[0] if row else "No scans yet"
 
     conn.close()
 
-    return render_template(
-        "profile.html",
-        username=session["user"],
-        total_scans=total_scans,
-        last_scan=last_scan
-    )
+    return render_template("profile.html", user=user, total_scans=total_scans, last_scan=last_scan)
 
 # ===============================
 # RUN

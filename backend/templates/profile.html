@@ -30,19 +30,30 @@
     <h1>👤 My Profile</h1>
 
     <div class="card" style="text-align:center;">
-        {% if user[4] %}
-            <img src="{{ url_for('static', filename=user[4]) }}" class="profile-pic">
-        {% else %}
-            <img src="{{ url_for('static', filename='default_avatar.png') }}" class="profile-pic">
-        {% endif %}
-    </div>
+    <form method="POST" enctype="multipart/form-data" id="photoForm">
+
+        <label class="profile-pic-wrapper">
+
+            {% if user[4] %}
+                <img src="{{ url_for('static', filename=user[4]) }}" class="profile-pic">
+            {% else %}
+                <img src="{{ url_for('static', filename='default_avatar.png') }}" class="profile-pic">
+            {% endif %}
+
+            <div class="profile-pic-overlay">Change</div>
+
+            <input type="file" name="profile_image" accept="image/*" hidden
+                   onchange="document.getElementById('photoForm').submit();">
+
+        </label>
+
+    </form>
+</div>
+
 
     <div class="card">
         <h3>📝 Edit Profile</h3>
         <form method="POST" enctype="multipart/form-data">
-
-            <label>Profile Photo</label>
-            <input type="file" name="profile_image" accept="image/*">
 
             <label>Username (cannot change)</label>
             <input type="text" value="{{ user[0] }}" disabled>

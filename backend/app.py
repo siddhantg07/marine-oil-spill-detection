@@ -345,7 +345,7 @@ def history():
 # PROFILE
 # ===============================
 # ===============================
-# PROFILE (EDITABLE + PHOTO)
+# PROFILE (EDITABLE + PHOTO) - SAFE VERSION
 # ===============================
 @app.route("/profile", methods=["GET", "POST"])
 def profile():
@@ -355,14 +355,13 @@ def profile():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
 
-    # Handle profile update
     if request.method == "POST":
-        full_name = request.form["full_name"]
-        email = request.form["email"]
-        role = request.form["role"]
+        # Use .get() so missing fields don't crash server
+        full_name = request.form.get("full_name")
+        email = request.form.get("email")
+        role = request.form.get("role")
 
-        # Handle profile image upload
-        profile_image_path = None
+        # Handle profile image upload (from avatar click)
         if "profile_image" in request.files:
             file = request.files["profile_image"]
             if file and file.filename != "":
@@ -379,12 +378,13 @@ def profile():
                     WHERE username = ?
                 """, (profile_image_path, session["user"]))
 
-        # Update text fields
-        c.execute("""
-            UPDATE users
-            SET full_name = ?, email = ?, role = ?
-            WHERE username = ?
-        """, (full_name, email, role, session["user"]))
+        # Update text fields ONLY if this is the profile form submit
+        if full_name is not None:
+            c.execute("""
+                UPDATE users
+                SET full_name = ?, email = ?, role = ?
+                WHERE username = ?
+            """, (full_name, email, role, session["user"]))
 
         conn.commit()
 

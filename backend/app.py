@@ -17,6 +17,8 @@ app.secret_key = "change_this_secret_key"
 # ===============================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
+PROFILE_PIC_FOLDER = os.path.join(UPLOAD_FOLDER, "profile_pics")
+os.makedirs(PROFILE_PIC_FOLDER, exist_ok=True)
 MODEL_PATH = os.path.join(BASE_DIR, "model", "oilspill_unet.h5")
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -342,6 +344,9 @@ def history():
 # ===============================
 # PROFILE
 # ===============================
+# ===============================
+# PROFILE (EDITABLE + PHOTO)
+# ===============================
 @app.route("/profile", methods=["GET", "POST"])
 def profile():
     if "user" not in session:
@@ -350,30 +355,68 @@ def profile():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
 
+    # Handle profile update
     if request.method == "POST":
+        full_name = request.form["full_name"]
+        email = request.form["email"]
+        role = request.form["role"]
+
+        # Handle profile image upload
+        profile_image_path = None
+        if "profile_image" in request.files:
+            file = request.files["profile_image"]
+            if file and file.filename != "":
+                ext = os.path.splitext(file.filename)[1]
+                filename = session["user"] + "_profile" + ext
+                save_path = os.path.join(PROFILE_PIC_FOLDER, filename)
+                file.save(save_path)
+
+                profile_image_path = "uploads/profile_pics/" + filename
+
+                c.execute("""
+                    UPDATE users
+                    SET profile_image = ?
+                    WHERE username = ?
+                """, (profile_image_path, session["user"]))
+
+        # Update text fields
         c.execute("""
-            UPDATE users SET full_name=?, email=?, role=? WHERE username=?
-        """, (
-            request.form["full_name"],
-            request.form["email"],
-            request.form["role"],
-            session["user"]
-        ))
+            UPDATE users
+            SET full_name = ?, email = ?, role = ?
+            WHERE username = ?
+        """, (full_name, email, role, session["user"]))
+
         conn.commit()
 
-    c.execute("SELECT username, full_name, email, role, profile_image FROM users WHERE username = ?", (session["user"],))
+    # Fetch user info
+    c.execute("""
+        SELECT username, full_name, email, role, profile_image
+        FROM users
+        WHERE username = ?
+    """, (session["user"],))
     user = c.fetchone()
 
+    # Stats
     c.execute("SELECT COUNT(*) FROM scan_history WHERE username = ?", (session["user"],))
     total_scans = c.fetchone()[0]
 
-    c.execute("SELECT timestamp FROM scan_history WHERE username=? ORDER BY timestamp DESC LIMIT 1", (session["user"],))
+    c.execute("""
+        SELECT timestamp FROM scan_history
+        WHERE username = ?
+        ORDER BY timestamp DESC
+        LIMIT 1
+    """, (session["user"],))
     row = c.fetchone()
     last_scan = row[0] if row else "No scans yet"
 
     conn.close()
 
-    return render_template("profile.html", user=user, total_scans=total_scans, last_scan=last_scan)
+    return render_template(
+        "profile.html",
+        user=user,
+        total_scans=total_scans,
+        last_scan=last_scan
+    )
 
 # ===============================
 # RUN

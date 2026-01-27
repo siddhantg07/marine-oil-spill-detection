@@ -29,10 +29,20 @@
 <div class="container">
     <h1>👤 My Profile</h1>
 
-    <!-- Edit Profile -->
+    <div class="card" style="text-align:center;">
+        {% if user[4] %}
+            <img src="{{ url_for('static', filename=user[4]) }}" class="profile-pic">
+        {% else %}
+            <img src="{{ url_for('static', filename='default_avatar.png') }}" class="profile-pic">
+        {% endif %}
+    </div>
+
     <div class="card">
         <h3>📝 Edit Profile</h3>
-        <form method="POST">
+        <form method="POST" enctype="multipart/form-data">
+
+            <label>Profile Photo</label>
+            <input type="file" name="profile_image" accept="image/*">
 
             <label>Username (cannot change)</label>
             <input type="text" value="{{ user[0] }}" disabled>
@@ -51,7 +61,6 @@
         </form>
     </div>
 
-    <!-- Stats -->
     <div class="image-grid">
         <div class="card">
             <h3>📊 Total Scans</h3>
@@ -62,12 +71,6 @@
             <h3>🕒 Last Scan</h3>
             <p>{{ last_scan }}</p>
         </div>
-    </div>
-
-    <!-- Security -->
-    <div class="card" style="text-align:center;">
-        <h3>🔐 Security</h3>
-        <a href="/change-password"><button>🔁 Change Password</button></a>
     </div>
 
     <footer>

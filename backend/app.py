@@ -170,6 +170,8 @@ def register():
         username = request.form["username"]
         password = request.form["password"]
         email = request.form.get("email", "")
+        # Add full_name support
+        full_name = request.form.get("full_name", "")
 
         hashed = generate_password_hash(password)
 
@@ -177,7 +179,7 @@ def register():
             conn = sqlite3.connect("users.db")
             c = conn.cursor()
             # Ensure email column exists (handled by upgrade_users_table)
-            c.execute("INSERT INTO users (username, password, email) VALUES (?, ?, ?)", (username, hashed, email))
+            c.execute("INSERT INTO users (username, password, email, full_name) VALUES (?, ?, ?, ?)", (username, hashed, email, full_name))
             conn.commit()
             conn.close()
             flash("Registration successful! Please login.")
@@ -421,43 +423,105 @@ def history():
 @app.route("/profile", methods=["GET", "POST"])
 def profile():
     if "user" not in session:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or "application/json" in request.headers.get("Accept", ""):
+            return jsonify({"success": False, "message": "Not logged in"}), 401
         return redirect(url_for("login"))
 
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
 
     if request.method == "POST":
-        # Use .get() so missing fields don't crash server
-        full_name = request.form.get("full_name")
-        email = request.form.get("email")
-        role = request.form.get("role")
+        # Check if it's a JSON request (API)
+        # Check if it's a JSON request (API)
+        if request.is_json:
+            data = request.get_json()
+            new_username = data.get("username")
+            full_name = data.get("full_name")
+            email = data.get("email")
+            role = data.get("role")
+        else:
+            # Form data
+            new_username = request.form.get("username")
+            full_name = request.form.get("full_name")
+            email = request.form.get("email")
+            role = request.form.get("role")
+
+        current_username = session["user"]
+
+        # Handle username change if requested
+        if new_username and new_username != current_username:
+            # Check if exists
+            c.execute("SELECT 1 FROM users WHERE username = ?", (new_username,))
+            if c.fetchone():
+                conn.close()
+                return jsonify({"success": False, "message": "Username already exists"}), 400
+            
+            # Rename profile pic if exists
+            old_pic_pattern = os.path.join(PROFILE_PIC_FOLDER, current_username + "_profile.*")
+            import glob
+            for f in glob.glob(old_pic_pattern):
+                ext = os.path.splitext(f)[1]
+                new_f = os.path.join(PROFILE_PIC_FOLDER, new_username + "_profile" + ext)
+                try:
+                    os.rename(f, new_f)
+                    # Update DB path
+                    new_db_path = "uploads/profile_pics/" + new_username + "_profile" + ext
+                    c.execute("UPDATE users SET profile_image = ? WHERE username = ?", (new_db_path, current_username))
+                except:
+                    pass
+
+            # Update users table
+            c.execute("UPDATE users SET username = ? WHERE username = ?", (new_username, current_username))
+            
+            # Update scan_history table (Cascade)
+            c.execute("UPDATE scan_history SET username = ? WHERE username = ?", (new_username, current_username))
+            
+            # Update session
+            session["user"] = new_username
+            current_username = new_username
 
         # Handle profile image upload (from avatar click)
+        profile_image_path = None
         if "profile_image" in request.files:
             file = request.files["profile_image"]
             if file and file.filename != "":
                 ext = os.path.splitext(file.filename)[1]
-                filename = session["user"] + "_profile" + ext
+                filename = current_username + "_profile" + ext
                 save_path = os.path.join(PROFILE_PIC_FOLDER, filename)
                 file.save(save_path)
-
                 profile_image_path = "uploads/profile_pics/" + filename
 
                 c.execute("""
                     UPDATE users
                     SET profile_image = ?
                     WHERE username = ?
-                """, (profile_image_path, session["user"]))
+                """, (profile_image_path, current_username))
 
-        # Update text fields ONLY if this is the profile form submit
+        # Update text fields
         if full_name is not None:
             c.execute("""
                 UPDATE users
                 SET full_name = ?, email = ?, role = ?
                 WHERE username = ?
-            """, (full_name, email, role, session["user"]))
-
+            """, (full_name, email, role, current_username))
+        
         conn.commit()
+        
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or "application/json" in request.headers.get("Accept", "") or request.is_json:
+             # Fetch updated user info to return
+            c.execute("SELECT username, full_name, email, role, profile_image FROM users WHERE username = ?", (session["user"],))
+            user = c.fetchone()
+            conn.close()
+            return jsonify({
+                "success": True,
+                "user": {
+                    "username": user[0],
+                    "fullName": user[1],
+                    "email": user[2],
+                    "role": user[3],
+                    "profileImage": user[4]
+                }
+            })
 
     # Fetch user info
     c.execute("""
@@ -479,8 +543,28 @@ def profile():
     """, (session["user"],))
     row = c.fetchone()
     last_scan = row[0] if row else "No scans yet"
+    
+    # Calculate member since (approximate via first scan or just static for now if not in DB)
+    # We can add created_at to users table later. For now, let's try to find first scan.
+    c.execute("SELECT timestamp FROM scan_history WHERE username = ? ORDER BY timestamp ASC LIMIT 1", (session["user"],))
+    first_scan_row = c.fetchone()
+    member_since = first_scan_row[0] if first_scan_row else "New Member"
 
     conn.close()
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or "application/json" in request.headers.get("Accept", ""):
+        return jsonify({
+            "fullName": user[1] if user[1] else "",
+            "email": user[2] if user[2] else "",
+            "username": user[0],
+            "role": user[3] if user[3] else "User",
+            "profileImage": user[4],
+            "stats": {
+                "totalScans": total_scans,
+                "lastScanDate": last_scan,
+                "memberSince": member_since
+            }
+        })
 
     return render_template(
         "profile.html",

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { LogOut, Lock, Activity, Calendar, Mail, User, Shield, Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,6 +16,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import Link from "next/link"
+import api, { endpoints } from "@/lib/api"
 
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false)
@@ -24,23 +25,95 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false)
 
   const [profile, setProfile] = useState({
-    fullName: "John Doe",
-    email: "john.doe@example.com",
-    username: "johndoe",
-    role: "Environmental Researcher",
+    fullName: "",
+    email: "",
+    username: "",
+    role: "",
+    profileImage: "",
   })
 
-  const stats = {
-    totalScans: 1284,
-    lastScanDate: "Jan 28, 2026",
-    memberSince: "Dec 2024",
+  // Add profileImageFile state
+  const [profileImageFile, setProfileImageFile] = useState<File | null>(null)
+
+  // Add profileImage state if needed, though ProfileAvatar handling might need its own logic
+  // For now we trust ProfileAvatar uses a prop or context, but looking at the component usage:
+  // <ProfileAvatar fallback="JD" /> -> It likely needs a specific image URL prop if we want to show the uploaded one.
+  // I will check ProfileAvatar component later if it doesn't support image src.
+  // For now let's focus on text fields.
+
+  const [stats, setStats] = useState({
+    totalScans: 0,
+    lastScanDate: "No scans yet",
+    memberSince: "New Member",
+  })
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const response = await api.get(endpoints.profile)
+        // axios returns data in response.data
+        const data = response.data
+
+        setProfile({
+          fullName: data.fullName,
+          email: data.email,
+          username: data.username,
+          role: data.role,
+          profileImage: data.profileImage ? "http://127.0.0.1:5000/" + data.profileImage : ""
+        })
+        setStats({
+          totalScans: data.stats.totalScans,
+          lastScanDate: data.stats.lastScanDate,
+          memberSince: data.stats.memberSince
+        })
+      } catch (error) {
+        console.error("Failed to fetch profile:", error)
+      }
+    }
+
+    fetchProfile()
+  }, [])
+
+  const handleFileSelect = (file: File) => {
+    setProfileImageFile(file)
+    // Create a preview URL
+    const objectUrl = URL.createObjectURL(file)
+    setProfile(prev => ({ ...prev, profileImage: objectUrl }))
   }
 
   const handleSave = async () => {
     setIsSaving(true)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsSaving(false)
-    setIsEditing(false)
+    try {
+      const formData = new FormData()
+      formData.append("username", profile.username)
+      formData.append("full_name", profile.fullName)
+      formData.append("email", profile.email)
+      formData.append("role", profile.role)
+      if (profileImageFile) {
+        formData.append("profile_image", profileImageFile)
+      }
+
+      // axios automatically sets Content-Type to multipart/form-data when body is FormData
+      // and handles credentials
+      const response = await api.post(endpoints.profile, formData)
+
+      const data = response.data
+      if (data.success) {
+        setProfile(prev => ({
+          ...prev,
+          fullName: data.user.fullName,
+          email: data.user.email,
+          role: data.user.role,
+          profileImage: data.user.profileImage ? "http://127.0.0.1:5000/" + data.user.profileImage : ""
+        }))
+        setProfileImageFile(null) // Reset file selection
+      }
+    } catch (error) {
+      console.error("Failed to save profile:", error)
+    } finally {
+      setIsSaving(false)
+      setIsEditing(false)
+    }
   }
 
   return (
@@ -54,7 +127,11 @@ export default function ProfilePage() {
       {/* Profile header card */}
       <div className="rounded-2xl border border-border bg-card/50 p-6 backdrop-blur-sm">
         <div className="flex flex-col items-center gap-6 sm:flex-row">
-          <ProfileAvatar fallback="JD" />
+          <ProfileAvatar
+            fallback={profile.fullName ? profile.fullName.charAt(0).toUpperCase() : "U"}
+            src={profile.profileImage}
+            onFileSelect={handleFileSelect}
+          />
           <div className="text-center sm:text-left">
             <h3 className="text-xl font-semibold text-foreground">{profile.fullName}</h3>
             <p className="text-muted-foreground">@{profile.username}</p>

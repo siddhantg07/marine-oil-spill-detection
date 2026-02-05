@@ -34,6 +34,7 @@ export const registerUser = async (data: any) => {
     formData.append("username", data.username);
     formData.append("password", data.password);
     formData.append("email", data.email);
+    formData.append("full_name", data.fullName);
     return api.post(endpoints.register, formData, {
         headers: { "Content-Type": "multipart/form-data" }
     });

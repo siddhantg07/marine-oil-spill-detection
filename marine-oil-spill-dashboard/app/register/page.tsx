@@ -33,6 +33,7 @@ export default function RegisterPage() {
     const form = e.target as HTMLFormElement
     const username = (form.elements.namedItem('username') as HTMLInputElement).value
     const email = (form.elements.namedItem('email') as HTMLInputElement).value
+    const fullName = (form.elements.namedItem('full_name') as HTMLInputElement).value
     // Correctly get confirmPassword value
     const confirmPasswordInput = form.elements.namedItem('confirmPassword') as HTMLInputElement
     const confirmPassword = confirmPasswordInput ? confirmPasswordInput.value : ''
@@ -46,11 +47,12 @@ export default function RegisterPage() {
 
     try {
       const { registerUser } = await import("@/lib/api")
-      // registerUser expects an object with username, password, email
+      // registerUser expects an object with username, password, email, fullName
       await registerUser({
         username,
         password,
-        email
+        email,
+        fullName
       })
 
       // If no error thrown, assume success (since existing code relied on redirect, 
@@ -119,6 +121,17 @@ export default function RegisterPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="full_name">Full Name</Label>
+                <Input
+                  id="full_name"
+                  type="text"
+                  placeholder="Enter your full name"
+                  required
+                  className="h-11 rounded-xl bg-background/50"
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="username">Username</Label>
                 <Input

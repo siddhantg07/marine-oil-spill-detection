@@ -11,9 +11,10 @@ interface ProfileAvatarProps {
   src?: string
   fallback: string
   className?: string
+  onFileSelect?: (file: File) => void
 }
 
-export function ProfileAvatar({ src, fallback, className }: ProfileAvatarProps) {
+export function ProfileAvatar({ src, fallback, className, onFileSelect }: ProfileAvatarProps) {
   const [isHovered, setIsHovered] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -24,6 +25,9 @@ export function ProfileAvatar({ src, fallback, className }: ProfileAvatarProps) 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      if (onFileSelect) {
+        onFileSelect(file)
+      }
       // Handle file upload - for now just log
       console.log("[v0] Avatar file selected:", file.name)
     }

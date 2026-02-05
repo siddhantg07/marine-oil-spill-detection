@@ -6,6 +6,8 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Waves, ArrowLeft } from "lucide-react"
+import { toast } from "sonner"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,10 +21,32 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // Simulate login
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsLoading(false)
-    router.push("/dashboard")
+
+    try {
+      // Use the centralized API client
+      const { loginUser } = await import("@/lib/api")
+      const response = await loginUser({
+        username: (e.target as any).username.value,
+        password: (e.target as any).password.value,
+      })
+
+      const data = response.data
+      if (data.success) {
+        toast.success("Login successful!")
+        router.push("/dashboard")
+      } else {
+        toast.error(data.message || "Login failed")
+      }
+    } catch (error: any) {
+      console.error("Login error:", error)
+      if (error.response && error.response.data && error.response.data.message) {
+        toast.error(error.response.data.message)
+      } else {
+        toast.error("Login failed. Please check your credentials.")
+      }
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (

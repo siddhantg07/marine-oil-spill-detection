@@ -6,6 +6,8 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Waves, ArrowLeft, Check } from "lucide-react"
+import { toast } from "sonner"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -26,12 +28,53 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Get form data
+    const form = e.target as HTMLFormElement
+    const username = (form.elements.namedItem('username') as HTMLInputElement).value
+    const email = (form.elements.namedItem('email') as HTMLInputElement).value
+    // Correctly get confirmPassword value
+    const confirmPasswordInput = form.elements.namedItem('confirmPassword') as HTMLInputElement
+    const confirmPassword = confirmPasswordInput ? confirmPasswordInput.value : ''
+
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match!")
+      return
+    }
+
     setIsLoading(true)
-    // Simulate registration
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsLoading(false)
-    router.push("/dashboard")
+
+    try {
+      const { registerUser } = await import("@/lib/api")
+      // registerUser expects an object with username, password, email
+      await registerUser({
+        username,
+        password,
+        email
+      })
+
+      // If no error thrown, assume success (since existing code relied on redirect, 
+      // but axios throws on 4xx/5xx).
+      // We can also check response.request.responseURL if needed, but standard 
+      // axios behavior is to throw on error status.
+      // If backend redirects to login, axios follows it.
+
+      toast.success("Registration successful! Please login.")
+      router.push("/login")
+
+    } catch (error: any) {
+      console.error("Registration error:", error)
+      // Check for specific backend errors if available
+      // Backend flashes messages, doesn't return JSON for register currently unless we change it.
+      // But we kept register as form submit in backend.
+      // If we used the API, we might want to change register to return JSON too for better error handling.
+      // For now, generic error.
+      toast.error("Registration failed. Username might already exist.")
+    } finally {
+      setIsLoading(false)
+    }
   }
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -130,9 +173,8 @@ export default function RegisterPage() {
                     {passwordRequirements.map((req) => (
                       <li
                         key={req.label}
-                        className={`flex items-center gap-2 text-xs ${
-                          req.met ? "text-accent" : "text-muted-foreground"
-                        }`}
+                        className={`flex items-center gap-2 text-xs ${req.met ? "text-accent" : "text-muted-foreground"
+                          }`}
                       >
                         <Check className={`h-3 w-3 ${req.met ? "opacity-100" : "opacity-30"}`} />
                         {req.label}

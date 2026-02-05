@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Eye, Download, CheckCircle, AlertTriangle, Search, Filter, FolderOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,59 +12,64 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+// import { getScanHistory } from "@/lib/api" // Ensure this is exported in api.ts
+import { getScanHistory } from "@/lib/api"
+import { useRouter } from "next/navigation"
 
-const mockHistory = [
-  {
-    id: 1,
-    date: "Jan 28, 2026 14:32",
-    region: "North Atlantic",
-    detected: false,
-    confidence: 98.7,
-  },
-  {
-    id: 2,
-    date: "Jan 27, 2026 09:15",
-    region: "Gulf of Mexico",
-    detected: true,
-    confidence: 94.2,
-  },
-  {
-    id: 3,
-    date: "Jan 25, 2026 16:45",
-    region: "Mediterranean Sea",
-    detected: false,
-    confidence: 99.1,
-  },
-  {
-    id: 4,
-    date: "Jan 24, 2026 11:22",
-    region: "North Sea",
-    detected: false,
-    confidence: 97.8,
-  },
-  {
-    id: 5,
-    date: "Jan 23, 2026 08:30",
-    region: "Persian Gulf",
-    detected: true,
-    confidence: 96.5,
-  },
-  {
-    id: 6,
-    date: "Jan 22, 2026 13:18",
-    region: "South China Sea",
-    detected: false,
-    confidence: 98.3,
-  },
-]
+type HistoryItem = {
+  id: number
+  date: string
+  region: string
+  detected: boolean
+  confidence: number
+  image_url: string
+  report_url: string
+}
 
 export default function HistoryPage() {
+  const [history, setHistory] = useState<HistoryItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [filter, setFilter] = useState("all")
   const [showEmpty, setShowEmpty] = useState(false)
+  const router = useRouter()
 
-  const filteredHistory = mockHistory.filter((item) => {
-    const matchesSearch = item.region.toLowerCase().includes(searchQuery.toLowerCase())
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const response = await getScanHistory()
+        const backendData = response.data
+
+        // Transform backend data to match frontend interface
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+
+        const transformedData: HistoryItem[] = backendData.map((item: any, index: number) => ({
+          id: index, // Backend doesn't return ID in JSON currently, using index
+          date: item.timestamp,
+          region: "Global", // Backend doesn't store region yet
+          detected: item.result === "Oil Spill Detected",
+          confidence: item.confidence || 0,
+          image_url: `${baseUrl}/static/${item.original_image}`,
+          report_url: `${baseUrl}/static/${item.report_file}`
+        }))
+
+        setHistory(transformedData)
+      } catch (error: any) {
+        console.error("Failed to fetch history:", error)
+        if (error.response && error.response.status === 401) {
+          router.push("/login")
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchHistory()
+  }, [router])
+
+  const filteredHistory = history.filter((item) => {
+    const matchesSearch = item.region.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.date.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesFilter =
       filter === "all" ||
       (filter === "detected" && item.detected) ||
@@ -72,7 +77,7 @@ export default function HistoryPage() {
     return matchesSearch && matchesFilter
   })
 
-  // Toggle empty state for demonstration
+  // Toggle empty state for demonstration (can be removed or kept for testing)
   const displayHistory = showEmpty ? [] : filteredHistory
 
   return (
@@ -85,14 +90,7 @@ export default function HistoryPage() {
             View and manage your previous detection scans
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowEmpty(!showEmpty)}
-          className="w-fit"
-        >
-          {showEmpty ? "Show History" : "Show Empty State"}
-        </Button>
+        {/* Removed 'Show Empty State' button for cleanliness, or can keep it */}
       </div>
 
       {/* Filters */}
@@ -100,7 +98,7 @@ export default function HistoryPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by region..."
+            placeholder="Search by date or region..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="h-10 rounded-xl bg-background/50 pl-10"
@@ -119,8 +117,11 @@ export default function HistoryPage() {
         </Select>
       </div>
 
-      {/* Empty state */}
-      {displayHistory.length === 0 ? (
+      {loading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map(i => <div key={i} className="h-64 animate-pulse rounded-2xl bg-muted"></div>)}
+        </div>
+      ) : displayHistory.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
             <FolderOpen className="h-8 w-8 text-muted-foreground" />
@@ -142,13 +143,20 @@ export default function HistoryPage() {
             >
               {/* Preview */}
               <div className="relative aspect-video bg-muted">
-                <div className="flex h-full items-center justify-center">
+                {/* Show Image */}
+                <img
+                  src={scan.image_url}
+                  alt="Scan"
+                  className="h-full w-full object-cover"
+                />
+
+                <div className="absolute inset-0 flex items-center justify-center">
                   <div
                     className={cn(
-                      "rounded-full px-3 py-1 text-xs font-medium",
+                      "rounded-full px-3 py-1 text-xs font-medium backdrop-blur-md",
                       scan.detected
-                        ? "bg-destructive/20 text-destructive"
-                        : "bg-accent/20 text-accent"
+                        ? "bg-destructive/80 text-destructive-foreground"
+                        : "bg-accent/80 text-accent-foreground"
                     )}
                   >
                     {scan.detected ? "Oil Detected" : "Clean"}
@@ -156,14 +164,14 @@ export default function HistoryPage() {
                 </div>
                 {/* Overlay on hover */}
                 <div className="absolute inset-0 flex items-center justify-center gap-2 bg-background/80 opacity-0 transition-opacity group-hover:opacity-100">
-                  <Button size="sm" variant="secondary" className="h-8 rounded-lg">
-                    <Eye className="mr-1 h-3 w-3" />
-                    View
-                  </Button>
-                  <Button size="sm" variant="secondary" className="h-8 rounded-lg">
-                    <Download className="mr-1 h-3 w-3" />
-                    Download
-                  </Button>
+                  {/* View button logic could be complex (redirect to scan page with state? or modal?) */}
+                  {/* For now removed View or keep simpler */}
+                  {scan.report_url && (
+                    <Button size="sm" variant="secondary" className="h-8 rounded-lg" onClick={() => window.open(scan.report_url, '_blank')}>
+                      <Download className="mr-1 h-3 w-3" />
+                      Report
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -188,7 +196,7 @@ export default function HistoryPage() {
                   </div>
                 </div>
                 <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
-                  <span className="text-xs text-muted-foreground">Confidence</span>
+                  <span className="text-xs text-muted-foreground">Affected Area</span>
                   <span className="text-sm font-medium text-foreground">
                     {scan.confidence.toFixed(1)}%
                   </span>
@@ -203,7 +211,7 @@ export default function HistoryPage() {
       {displayHistory.length > 0 && (
         <div className="flex justify-center">
           <p className="text-sm text-muted-foreground">
-            Showing {displayHistory.length} of {mockHistory.length} scans
+            Showing {displayHistory.length} scan{displayHistory.length !== 1 ? 's' : ''}
           </p>
         </div>
       )}

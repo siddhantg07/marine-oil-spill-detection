@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask_cors import CORS
 import tensorflow as tf
 import numpy as np
 import cv2
@@ -10,7 +11,9 @@ from reportlab.pdfgen import canvas
 from datetime import datetime
 
 app = Flask(__name__)
+CORS(app, supports_credentials=True, resources={r"/*": {"origins": "http://localhost:3000"}})
 app.secret_key = "change_this_secret_key"
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # ===============================
 # PATHS
@@ -136,13 +139,25 @@ def generate_pdf_report(original_img, mask_img, overlay_img, result, confidence,
 # ===============================
 # SAVE HISTORY
 # ===============================
-def save_scan_history(username, orig, mask, overlay, report):
+def save_scan_history(username, orig, mask, overlay, report, result, confidence):
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
+    
+    # Ensure columns exist (simple migration check)
+    try:
+        c.execute("ALTER TABLE scan_history ADD COLUMN result TEXT")
+    except:
+        pass
+        
+    try:
+        c.execute("ALTER TABLE scan_history ADD COLUMN confidence REAL")
+    except:
+        pass
+
     c.execute("""
-        INSERT INTO scan_history (username, original_image, mask_image, overlay_image, report_file)
-        VALUES (?, ?, ?, ?, ?)
-    """, (username, orig, mask, overlay, report))
+        INSERT INTO scan_history (username, original_image, mask_image, overlay_image, report_file, result, confidence)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (username, orig, mask, overlay, report, result, confidence))
     conn.commit()
     conn.close()
 
@@ -154,13 +169,15 @@ def register():
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
+        email = request.form.get("email", "")
 
         hashed = generate_password_hash(password)
 
         try:
             conn = sqlite3.connect("users.db")
             c = conn.cursor()
-            c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed))
+            # Ensure email column exists (handled by upgrade_users_table)
+            c.execute("INSERT INTO users (username, password, email) VALUES (?, ?, ?)", (username, hashed, email))
             conn.commit()
             conn.close()
             flash("Registration successful! Please login.")
@@ -175,8 +192,13 @@ def register():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
+        if request.is_json:
+            data = request.get_json()
+            username = data.get("username")
+            password = data.get("password")
+        else:
+            username = request.form["username"]
+            password = request.form["password"]
 
         conn = sqlite3.connect("users.db")
         c = conn.cursor()
@@ -186,8 +208,12 @@ def login():
 
         if user and check_password_hash(user[0], password):
             session["user"] = username
+            if request.is_json:
+                return jsonify({"success": True, "user": username})
             return redirect(url_for("dashboard"))
         else:
+            if request.is_json:
+                return jsonify({"success": False, "message": "Invalid username or password"}), 401
             flash("Invalid username or password!")
 
     return render_template("login.html")
@@ -234,7 +260,7 @@ def dashboard():
 
     # Last scan
     c.execute("""
-        SELECT overlay_image, timestamp
+        SELECT overlay_image, original_image, mask_image, timestamp
         FROM scan_history
         WHERE username = ?
         ORDER BY timestamp DESC
@@ -243,11 +269,22 @@ def dashboard():
     row = c.fetchone()
 
     if row:
-        last_image, last_time = row
+        last_image, last_original, last_mask, last_time = row
     else:
-        last_image, last_time = None, "No scans yet"
+        last_image, last_original, last_mask, last_time = None, None, None, "No scans yet"
 
     conn.close()
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or "application/json" in request.headers.get("Accept", ""):
+        return jsonify({
+            "total_scans": total_scans,
+            "oil_scans": oil_scans,
+            "no_oil_scans": no_oil_scans,
+            "last_image": last_image,
+            "last_original": last_original,
+            "last_mask": last_mask,
+            "last_time": last_time
+        })
 
     return render_template(
         "dashboard.html",
@@ -308,13 +345,26 @@ def scan():
             "uploads/" + filename,
             "uploads/" + mask_file,
             "uploads/" + overlay_file,
-            "uploads/" + report_file
+            "uploads/" + report_file,
+            result,
+            confidence
         )
 
         image_path = "uploads/" + filename
         mask_path = "uploads/" + mask_file
         overlay_path = "uploads/" + overlay_file
         report_path = "uploads/" + report_file
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or "application/json" in request.headers.get("Accept", ""):
+        return jsonify({
+            "result": result,
+            "confidence": confidence,
+            "affected_area": confidence,
+            "image_path": image_path,
+            "mask_path": mask_path,
+            "overlay_path": overlay_path,
+            "report_path": report_path
+        })
 
     return render_template("index.html", result=result, confidence=confidence,
                            image_path=image_path, mask_path=mask_path,
@@ -330,14 +380,35 @@ def history():
 
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
-    c.execute("""
-        SELECT original_image, mask_image, overlay_image, report_file, timestamp
-        FROM scan_history
-        WHERE username = ?
-        ORDER BY timestamp DESC
-    """, (session["user"],))
+    
+    # Ensure columns exist for select (if upgrading old db)
+    try:
+        c.execute("SELECT original_image, mask_image, overlay_image, report_file, timestamp, result, confidence FROM scan_history WHERE username = ? ORDER BY timestamp DESC", (session["user"],))
+    except:
+        # Fallback for old db without new columns
+        c.execute("SELECT original_image, mask_image, overlay_image, report_file, timestamp FROM scan_history WHERE username = ? ORDER BY timestamp DESC", (session["user"],))
+    
     rows = c.fetchall()
     conn.close()
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or "application/json" in request.headers.get("Accept", ""):
+        history_data = []
+        for row in rows:
+            # Handle potential missing columns in old rows if we just added them but didn't backfill
+            # Row length will vary.
+            item = {
+                "original_image": row[0],
+                "mask_image": row[1],
+                "overlay_image": row[2],
+                "report_file": row[3],
+                "timestamp": row[4],
+                "result": row[5] if len(row) > 5 else "Unknown",
+                "confidence": row[6] if len(row) > 6 else 0.0,
+                # In frontend we can use confidence as affected_area
+                "affected_area": row[6] if len(row) > 6 else 0.0
+            }
+            history_data.append(item)
+        return jsonify(history_data)
 
     return render_template("history.html", history=rows)
 

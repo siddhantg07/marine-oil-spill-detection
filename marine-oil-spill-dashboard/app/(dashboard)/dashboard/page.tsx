@@ -100,8 +100,8 @@ export default function DashboardPage() {
       <div className="rounded-2xl border border-border bg-card/50 p-6 backdrop-blur-sm">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-foreground">Last Scan Preview</h3>
-            <p className="text-sm text-muted-foreground">Most recent detection result</p>
+            <h3 className="text-lg font-semibold text-foreground">Latest Scan Results</h3>
+            <p className="text-sm text-muted-foreground">Most recent detection result (Original / Mask / Overlay)</p>
           </div>
           {data.last_image && (
             <div className="flex items-center gap-2 rounded-full bg-accent/20 px-3 py-1 text-sm font-medium text-accent">
@@ -119,7 +119,7 @@ export default function DashboardPage() {
               <div className="aspect-video overflow-hidden rounded-xl border border-border bg-muted">
                 <div className="relative h-full w-full">
                   <img
-                    src={`${baseUrl}/static/${data.last_original}`}
+                    src={`${baseUrl}/static/${data.last_original || data.last_image}`}
                     alt="Original satellite image"
                     className="h-full w-full object-cover"
                   />
@@ -133,7 +133,7 @@ export default function DashboardPage() {
               <div className="aspect-video overflow-hidden rounded-xl border border-border bg-muted">
                 <div className="relative h-full w-full">
                   <img
-                    src={`${baseUrl}/static/${data.last_mask}`}
+                    src={`${baseUrl}/static/${data.last_mask || data.last_image}`}
                     alt="Detection mask"
                     className="h-full w-full object-cover"
                   />

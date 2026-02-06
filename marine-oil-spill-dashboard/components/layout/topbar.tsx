@@ -1,7 +1,7 @@
 "use client"
 
 import { usePathname } from "next/navigation"
-import { Bell, Check } from "lucide-react"
+import { Bell, Check, Menu } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -13,6 +13,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet"
+import { Sidebar } from "@/components/layout/sidebar"
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import api, { endpoints, getNotifications, markNotificationsRead } from "@/lib/api"
@@ -39,6 +45,7 @@ export function Topbar() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const fetchNotifications = async () => {
     try {
@@ -71,8 +78,19 @@ export function Topbar() {
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
-      {/* Page title - offset on mobile for hamburger menu */}
-      <div className="pl-12 lg:pl-0">
+      {/* Left side: Hamburger + Title */}
+      <div className="flex items-center gap-4">
+        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="shrink-0">
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Toggle menu</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-64 p-0">
+            <Sidebar onNavigate={() => setSidebarOpen(false)} />
+          </SheetContent>
+        </Sheet>
         <h1 className="text-xl font-semibold text-foreground">{title}</h1>
       </div>
 

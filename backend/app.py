@@ -465,7 +465,7 @@ def profile():
                 try:
                     os.rename(f, new_f)
                     # Update DB path
-                    new_db_path = "uploads/profile_pics/" + new_username + "_profile" + ext
+                    new_db_path = "static/uploads/profile_pics/" + new_username + "_profile" + ext
                     c.execute("UPDATE users SET profile_image = ? WHERE username = ?", (new_db_path, current_username))
                 except:
                     pass
@@ -489,7 +489,7 @@ def profile():
                 filename = current_username + "_profile" + ext
                 save_path = os.path.join(PROFILE_PIC_FOLDER, filename)
                 file.save(save_path)
-                profile_image_path = "uploads/profile_pics/" + filename
+                profile_image_path = "static/uploads/profile_pics/" + filename
 
                 c.execute("""
                     UPDATE users

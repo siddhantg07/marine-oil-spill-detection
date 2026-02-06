@@ -79,6 +79,7 @@ export default function ProfilePage() {
     // Create a preview URL
     const objectUrl = URL.createObjectURL(file)
     setProfile(prev => ({ ...prev, profileImage: objectUrl }))
+    setIsEditing(true)
   }
 
   const handleSave = async () => {
@@ -95,7 +96,9 @@ export default function ProfilePage() {
 
       // axios automatically sets Content-Type to multipart/form-data when body is FormData
       // and handles credentials
-      const response = await api.post(endpoints.profile, formData)
+      const response = await api.post(endpoints.profile, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      })
 
       const data = response.data
       if (data.success) {

@@ -18,6 +18,8 @@ export const endpoints = {
     scan: "/scan",
     profile: "/profile",
     history: "/history",
+    notifications: "/notifications",
+    markNotificationsRead: "/notifications/mark-read",
 };
 
 // Since the backend currently returns HTML for many routes (dashboard, history), 
@@ -58,6 +60,14 @@ export const getScanHistory = async () => {
 
 export const getDashboardData = async () => {
     return api.get(endpoints.dashboard);
+}
+
+export const getNotifications = async () => {
+    return api.get(endpoints.notifications);
+}
+
+export const markNotificationsRead = async () => {
+    return api.post(endpoints.markNotificationsRead);
 }
 
 export default api;

@@ -58,6 +58,17 @@ def init_db():
         )
     """)
 
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT,
+            message TEXT,
+            type TEXT,
+            is_read BOOLEAN DEFAULT 0,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -349,8 +360,17 @@ def scan():
             "uploads/" + overlay_file,
             "uploads/" + report_file,
             result,
+            result,
             confidence
         )
+
+        # Create notification
+        c = conn.cursor()
+        notif_msg = f"New scan completed: {result}"
+        notif_type = "alert" if ratio > 0.01 else "info"
+        c.execute("INSERT INTO notifications (username, message, type) VALUES (?, ?, ?)", (session["user"], notif_msg, notif_type))
+        conn.commit()
+        conn.close()
 
         image_path = "uploads/" + filename
         mask_path = "uploads/" + mask_file
@@ -413,6 +433,51 @@ def history():
         return jsonify(history_data)
 
     return render_template("history.html", history=rows)
+
+# ===============================
+# NOTIFICATIONS
+# ===============================
+@app.route("/notifications", methods=["GET"])
+def get_notifications():
+    if "user" not in session:
+        return jsonify({"success": False, "message": "Not logged in"}), 401
+
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    # Get unread or recent 10 notifications
+    c.execute("""
+        SELECT id, message, type, is_read, timestamp 
+        FROM notifications 
+        WHERE username = ? 
+        ORDER BY timestamp DESC LIMIT 20
+    """, (session["user"],))
+    rows = c.fetchall()
+    conn.close()
+
+    notifications = []
+    for row in rows:
+        notifications.append({
+            "id": row[0],
+            "message": row[1],
+            "type": row[2],
+            "isRead": bool(row[3]),
+            "timestamp": row[4]
+        })
+
+    return jsonify(notifications)
+
+@app.route("/notifications/mark-read", methods=["POST"])
+def mark_notifications_read():
+    if "user" not in session:
+        return jsonify({"success": False, "message": "Not logged in"}), 401
+    
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("UPDATE notifications SET is_read = 1 WHERE username = ?", (session["user"],))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({"success": True})
 
 # ===============================
 # PROFILE

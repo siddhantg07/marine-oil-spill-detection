@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { LogOut, Lock, Activity, Calendar, Mail, User, Shield, Eye, EyeOff } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -34,6 +35,52 @@ export default function ProfilePage() {
 
   // Add profileImageFile state
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null)
+
+  // Password state
+  const [passwordState, setPasswordState] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  })
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false)
+
+  const handlePasswordUpdate = async () => {
+    if (passwordState.newPassword !== passwordState.confirmPassword) {
+      toast.error("New passwords do not match")
+      return
+    }
+    if (!passwordState.currentPassword || !passwordState.newPassword) {
+      toast.error("Please fill in all fields")
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      // Dynamically import to avoid circular dependencies if any, though likely fine here
+      const { updatePassword } = await import("@/lib/api")
+      const response = await updatePassword({
+        current_password: passwordState.currentPassword,
+        new_password: passwordState.newPassword,
+      })
+
+      if (response.data.success) {
+        toast.success("Password updated successfully")
+        setIsPasswordDialogOpen(false)
+        setPasswordState({ currentPassword: "", newPassword: "", confirmPassword: "" })
+      } else {
+        toast.error(response.data.message || "Failed to update password")
+      }
+    } catch (error: any) {
+      console.error("Password update error:", error)
+      if (error.response && error.response.data && error.response.data.message) {
+        toast.error(error.response.data.message)
+      } else {
+        toast.error("Failed to update password")
+      }
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   // Add profileImage state if needed, though ProfileAvatar handling might need its own logic
   // For now we trust ProfileAvatar uses a prop or context, but looking at the component usage:
@@ -296,7 +343,7 @@ export default function ProfilePage() {
       <div className="rounded-2xl border border-border bg-card/50 p-6 backdrop-blur-sm">
         <h4 className="mb-6 text-lg font-semibold text-foreground">Account Actions</h4>
         <div className="flex flex-wrap gap-4">
-          <Dialog>
+          <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="rounded-xl bg-transparent">
                 <Lock className="mr-2 h-4 w-4" />
@@ -318,6 +365,8 @@ export default function ProfilePage() {
                       id="currentPassword"
                       type={showCurrentPassword ? "text" : "password"}
                       className="h-10 rounded-xl pr-10"
+                      value={passwordState.currentPassword}
+                      onChange={(e) => setPasswordState({ ...passwordState, currentPassword: e.target.value })}
                     />
                     <button
                       type="button"
@@ -339,6 +388,8 @@ export default function ProfilePage() {
                       id="newPassword"
                       type={showNewPassword ? "text" : "password"}
                       className="h-10 rounded-xl pr-10"
+                      value={passwordState.newPassword}
+                      onChange={(e) => setPasswordState({ ...passwordState, newPassword: e.target.value })}
                     />
                     <button
                       type="button"
@@ -359,12 +410,14 @@ export default function ProfilePage() {
                     id="confirmPassword"
                     type="password"
                     className="h-10 rounded-xl"
+                    value={passwordState.confirmPassword}
+                    onChange={(e) => setPasswordState({ ...passwordState, confirmPassword: e.target.value })}
                   />
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit" className="rounded-xl">
-                  Update Password
+                <Button type="submit" className="rounded-xl" onClick={handlePasswordUpdate} disabled={isSaving}>
+                  {isSaving ? "Updating..." : "Update Password"}
                 </Button>
               </DialogFooter>
             </DialogContent>

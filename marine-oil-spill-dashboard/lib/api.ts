@@ -70,4 +70,8 @@ export const markNotificationsRead = async () => {
     return api.post(endpoints.markNotificationsRead);
 }
 
+export const updatePassword = async (data: any) => {
+    return api.post(endpoints.profile, data);
+};
+
 export default api;

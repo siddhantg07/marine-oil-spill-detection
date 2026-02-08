@@ -545,6 +545,25 @@ def profile():
             session["user"] = new_username
             current_username = new_username
 
+        # Handle Password Change
+        current_password = data.get("current_password") if request.is_json else request.form.get("current_password")
+        new_password = data.get("new_password") if request.is_json else request.form.get("new_password")
+
+        if new_password:
+            if not current_password:
+                return jsonify({"success": False, "message": "Current password is required"}), 400
+            
+            # Verify current password
+            c.execute("SELECT password FROM users WHERE username = ?", (current_username,))
+            stored_hash = c.fetchone()[0]
+            
+            if not check_password_hash(stored_hash, current_password):
+                return jsonify({"success": False, "message": "Incorrect current password"}), 400
+            
+            # Update password
+            new_hash = generate_password_hash(new_password)
+            c.execute("UPDATE users SET password = ? WHERE username = ?", (new_hash, current_username))
+
         # Handle profile image upload (from avatar click)
         profile_image_path = None
         if "profile_image" in request.files:

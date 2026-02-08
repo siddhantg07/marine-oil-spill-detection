@@ -56,7 +56,7 @@ export default function LandingPage() {
               </span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground text-pretty">
-              AI-powered satellite image analysis for environmental monitoring. Detect and track 
+              AI-powered satellite image analysis for environmental monitoring. Detect and track
               oil spills in real-time to protect our oceans and marine ecosystems.
             </p>
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
@@ -67,7 +67,7 @@ export default function LandingPage() {
                 </Button>
               </Link>
               <Link href="/login">
-                <Button size="lg" variant="outline" className="h-12 rounded-full px-8 text-base bg-transparent">
+                <Button size="lg" variant="ghost" className="h-12 rounded-full px-8 text-base border hover:bg-accent hover:text-accent-foreground">
                   Sign In to Dashboard
                 </Button>
               </Link>
@@ -163,7 +163,7 @@ export default function LandingPage() {
                 Ready to protect our oceans?
               </h2>
               <p className="mx-auto mt-4 max-w-xl text-primary-foreground/80">
-                Join thousands of environmental researchers, coast guards, and organizations 
+                Join thousands of environmental researchers, coast guards, and organizations
                 using our AI platform to monitor and respond to oil spills.
               </p>
               <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { LogOut, Lock, Activity, Calendar, Mail, User, Shield, Eye, EyeOff } from "lucide-react"
+import { format, parse } from "date-fns"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -322,7 +323,11 @@ export default function ProfilePage() {
               <Calendar className="h-6 w-6 text-accent" />
             </div>
             <div>
-              <p className="text-lg font-bold text-foreground">{stats.lastScanDate}</p>
+              <p className="text-lg font-bold text-foreground">
+                {stats.lastScanDate !== "No scans yet"
+                  ? format(parse(stats.lastScanDate, "yyyy-MM-dd HH:mm:ss", new Date()), "MMM dd yyyy")
+                  : "N/A"}
+              </p>
               <p className="text-sm text-muted-foreground">Last Scan</p>
             </div>
           </div>
@@ -332,7 +337,11 @@ export default function ProfilePage() {
               <User className="h-6 w-6 text-chart-3" />
             </div>
             <div>
-              <p className="text-lg font-bold text-foreground">{stats.memberSince}</p>
+              <p className="text-lg font-bold text-foreground">
+                {stats.memberSince !== "New Member"
+                  ? format(parse(stats.memberSince, "yyyy-MM-dd HH:mm:ss", new Date()), "MMM yyyy")
+                  : "New Member"}
+              </p>
               <p className="text-sm text-muted-foreground">Member Since</p>
             </div>
           </div>
@@ -345,7 +354,7 @@ export default function ProfilePage() {
         <div className="flex flex-wrap gap-4">
           <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="rounded-xl bg-transparent">
+              <Button variant="ghost" className="rounded-xl border border-border/50 hover:bg-accent/10 hover:text-accent">
                 <Lock className="mr-2 h-4 w-4" />
                 Change Password
               </Button>

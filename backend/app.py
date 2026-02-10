@@ -96,7 +96,13 @@ upgrade_users_table()
 # IMAGE PREPROCESS
 # ===============================
 def preprocess_image(image_path):
+    if not os.path.exists(image_path):
+        raise FileNotFoundError(f"Image not found at {image_path}")
+        
     img = cv2.imread(image_path)
+    if img is None:
+        raise ValueError(f"Failed to load image from {image_path}. Format might be unsupported or file corrupted.")
+
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     img = cv2.resize(img, (256, 256))
     img = img / 255.0
@@ -360,11 +366,11 @@ def scan():
             "uploads/" + overlay_file,
             "uploads/" + report_file,
             result,
-            result,
             confidence
         )
 
         # Create notification
+        conn = sqlite3.connect("users.db")
         c = conn.cursor()
         notif_msg = f"New scan completed: {result}"
         notif_type = "alert" if ratio > 0.01 else "info"

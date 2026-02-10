@@ -5,9 +5,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 const api = axios.create({
     baseURL: API_URL,
     withCredentials: true, // Important for Flask session cookies
-    headers: {
-        "Content-Type": "application/json",
-    },
 });
 
 export const endpoints = {
@@ -37,19 +34,13 @@ export const registerUser = async (data: any) => {
     formData.append("password", data.password);
     formData.append("email", data.email);
     formData.append("full_name", data.fullName);
-    return api.post(endpoints.register, formData, {
-        headers: { "Content-Type": "multipart/form-data" }
-    });
+    return api.post(endpoints.register, formData);
 };
 
 export const uploadScan = async (file: File) => {
     const formData = new FormData();
     formData.append("image", file);
-    return api.post(endpoints.scan, formData, {
-        headers: {
-            "Content-Type": "multipart/form-data",
-        },
-    });
+    return api.post(endpoints.scan, formData);
 };
 
 export const getScanHistory = async () => {

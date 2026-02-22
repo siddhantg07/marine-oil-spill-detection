@@ -2,6 +2,7 @@ import Link from "next/link"
 import { ArrowRight, Satellite, Shield, Zap, BarChart3, Globe, Waves } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { BlurInText } from "@/components/ui/blur-in-text"
 
 export default function LandingPage() {
   return (
@@ -49,12 +50,12 @@ export default function LandingPage() {
               </span>
               AI-Powered Detection
             </div>
-            <h1 className="mx-auto max-w-4xl text-4xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-7xl text-balance">
-              Marine Oil Spill Detection{" "}
-              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Using AI
-              </span>
-            </h1>
+            <BlurInText
+              text="Marine Oil Spill Detection Using AI"
+              highlightText="Using AI"
+              highlightClassName="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent"
+              className="mx-auto max-w-4xl tracking-tight text-foreground sm:text-6xl lg:text-7xl text-balance mb-6"
+            />
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground text-pretty">
               AI-powered satellite image analysis for environmental monitoring. Detect and track
               oil spills in real-time to protect our oceans and marine ecosystems.
